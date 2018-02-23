@@ -2,7 +2,6 @@ package clienttiming_test
 
 import (
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"time"
@@ -30,7 +29,7 @@ func ExampleClient() {
 		&handler{
 			name:   "server2",
 			client: clienttiming.New(clienttiming.OptName("server2")),
-			addr1:  s1.URL + "/level2",
+			addr:   []string{s1.URL + "/level2"},
 		},
 		nil,
 	))
@@ -40,8 +39,10 @@ func ExampleClient() {
 		&handler{
 			name:   "handler",
 			client: clienttiming.New(clienttiming.OptName("handler")),
-			addr1:  s1.URL + "/level1",
-			addr2:  s2.URL + "/level1",
+			addr: []string{
+				s1.URL + "/level1",
+				s2.URL + "/level1",
+			},
 		},
 		nil,
 	)
@@ -64,48 +65,31 @@ func ExampleClient() {
 var dur = regexp.MustCompile(`dur=\d+\.?\d*`)
 
 type handler struct {
-	addr1, addr2 string
-	name         string
-	client       *clienttiming.Client
+	name string
+	// client is used by te handler to send http requests
+	client *clienttiming.Client
+	// requests defines addresses for upstream GET requests
+	addr []string
 }
 
 func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	c := h.client.Client(r.Context())
+
+	// sleep to have some duration in headers
 	time.Sleep(time.Millisecond * 50)
-	b1, err := get(c, h.addr1)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	b2, err := get(c, h.addr2)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+
+	// send request to all addresses
+	for _, addr := range h.addr {
+		resp, err := c.Get(addr)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		resp.Body.Close()
 	}
 
 	// write headers
 	w.WriteHeader(http.StatusOK)
-
-	// write body
-	if b1 != nil {
-		w.Write(b1)
-	}
-	if b2 != nil {
-		w.Write(b2)
-	}
-	w.Write([]byte(h.name + "\n"))
-}
-
-func get(c *http.Client, addr string) ([]byte, error) {
-	if addr == "" {
-		return nil, nil
-	}
-	resp, err := c.Get(addr)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	return ioutil.ReadAll(resp.Body)
 }
 
 func serverName(s *httptest.Server) string {

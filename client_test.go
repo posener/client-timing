@@ -1,7 +1,6 @@
 package clienttiming
 
 import (
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -27,9 +26,9 @@ func TestClient(t *testing.T) {
 
 	s2 := httptest.NewServer(servertiming.Middleware(
 		&handler{
-			name:   "server2",
-			client: New(OptName("server2")),
-			addr1:  s1.URL + "/level2",
+			name:     "server2",
+			client:   New(OptName("server2")),
+			requests: []string{s1.URL + "/level2"},
 		},
 		nil,
 	))
@@ -39,8 +38,10 @@ func TestClient(t *testing.T) {
 		&handler{
 			name:   "handler",
 			client: New(OptName("handler")),
-			addr1:  s1.URL + "/level1",
-			addr2:  s2.URL + "/level1",
+			requests: []string{
+				s1.URL + "/level1",
+				s2.URL + "/level1",
+			},
 		},
 		nil,
 	)
@@ -86,48 +87,31 @@ func TestClient(t *testing.T) {
 }
 
 type handler struct {
-	addr1, addr2 string
-	name         string
-	client       *Client
+	name string
+	// client is used by te handler to send http requests
+	client *Client
+	// requests defines addresses for upstream GET requests
+	requests []string
 }
 
 func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	c := h.client.Client(r.Context())
+
+	// sleep to have some duration in headers
 	time.Sleep(time.Millisecond * 50)
-	b1, err := get(c, h.addr1)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	b2, err := get(c, h.addr2)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+
+	// send request to all addresses
+	for _, addr := range h.requests {
+		resp, err := c.Get(addr)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		resp.Body.Close()
 	}
 
 	// write headers
 	w.WriteHeader(http.StatusOK)
-
-	// write body
-	if b1 != nil {
-		w.Write(b1)
-	}
-	if b2 != nil {
-		w.Write(b2)
-	}
-	w.Write([]byte(h.name + "\n"))
-}
-
-func get(c *http.Client, addr string) ([]byte, error) {
-	if addr == "" {
-		return nil, nil
-	}
-	resp, err := c.Get(addr)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	return ioutil.ReadAll(resp.Body)
 }
 
 func serverName(s *httptest.Server) string {
