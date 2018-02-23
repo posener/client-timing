@@ -4,11 +4,9 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"time"
-
 	"regexp"
-
 	"strings"
+	"time"
 
 	"github.com/mitchellh/go-server-timing"
 	"github.com/posener/client-timing"
