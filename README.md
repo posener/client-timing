@@ -40,4 +40,4 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-See [example test](./example_test.go).
+See [client test](./client_test.go).
