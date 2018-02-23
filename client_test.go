@@ -13,16 +13,37 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestTransport(t *testing.T) {
+func TestClient(t *testing.T) {
 	t.Parallel()
 
-	s1 := httptest.NewServer(servertiming.Middleware(&handler{name: "server1"}, nil))
+	s1 := httptest.NewServer(servertiming.Middleware(
+		&handler{
+			client: New(OptName("server1")),
+			name:   "server1",
+		},
+		nil,
+	))
 	defer s1.Close()
 
-	s2 := httptest.NewServer(servertiming.Middleware(&handler{name: "server2", addr1: s1.URL + "/level2"}, nil))
+	s2 := httptest.NewServer(servertiming.Middleware(
+		&handler{
+			name:   "server2",
+			client: New(OptName("server2")),
+			addr1:  s1.URL + "/level2",
+		},
+		nil,
+	))
 	defer s2.Close()
 
-	h := servertiming.Middleware(&handler{name: "handler", addr1: s1.URL + "/level1", addr2: s2.URL + "/level1"}, nil)
+	h := servertiming.Middleware(
+		&handler{
+			name:   "handler",
+			client: New(OptName("handler")),
+			addr1:  s1.URL + "/level1",
+			addr2:  s2.URL + "/level1",
+		},
+		nil,
+	)
 
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/level0", nil))
@@ -36,19 +57,28 @@ func TestTransport(t *testing.T) {
 		t,
 		[]*servertiming.Metric{
 			{
-				Name:  serverName(s1),
-				Desc:  "GET /level2",
-				Extra: map[string]string{"code": "200"},
+				Name: serverName(s1),
+				Desc: "GET /level2",
+				Extra: map[string]string{
+					"code":   "200",
+					"source": "server2",
+				},
 			},
 			{
-				Name:  serverName(s1),
-				Desc:  "GET /level1",
-				Extra: map[string]string{"code": "200"},
+				Name: serverName(s1),
+				Desc: "GET /level1",
+				Extra: map[string]string{
+					"code":   "200",
+					"source": "handler",
+				},
 			},
 			{
-				Name:  serverName(s2),
-				Desc:  "GET /level1",
-				Extra: map[string]string{"code": "200"},
+				Name: serverName(s2),
+				Desc: "GET /level1",
+				Extra: map[string]string{
+					"code":   "200",
+					"source": "handler",
+				},
 			},
 		},
 		timings.Metrics,
@@ -58,10 +88,11 @@ func TestTransport(t *testing.T) {
 type handler struct {
 	addr1, addr2 string
 	name         string
+	client       *Client
 }
 
 func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	c := NewClient(r.Context())
+	c := h.client.Client(r.Context())
 	time.Sleep(time.Millisecond * 50)
 	b1, err := get(c, h.addr1)
 	if err != nil {

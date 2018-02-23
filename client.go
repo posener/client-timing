@@ -11,25 +11,31 @@ import (
 )
 
 // Option is client-timing transport option function
-type Option func(*Transport)
+type Option func(*Client)
 
-// OptTransport sets the inner Transport for the request
+// OptTransport sets the inner Client for the request
 func OptTransport(inner http.RoundTripper) Option {
-	return func(t *Transport) {
+	return func(t *Client) {
 		t.inner = inner
 	}
 }
 
 // OptMetric sets the metric function which defines the metric name from the request
 func OptMetric(metric func(*http.Request) string) Option {
-	return func(t *Transport) {
+	return func(t *Client) {
 		t.metric = metric
+	}
+}
+
+func OptName(name string) Option {
+	return func(t *Client) {
+		t.name = name
 	}
 }
 
 // OptDesc sets the desc function which defines the metric description from the request
 func OptDesc(desc func(*http.Request) string) Option {
-	return func(t *Transport) {
+	return func(t *Client) {
 		t.desc = desc
 	}
 }
@@ -37,20 +43,19 @@ func OptDesc(desc func(*http.Request) string) Option {
 // OptUpdate sets the update function which updates the metric according to response and error
 // received from completing the round trip
 func OptUpdate(update func(*servertiming.Metric, *http.Response, error)) Option {
-	return func(t *Transport) {
+	return func(t *Client) {
 		t.update = update
 	}
 }
 
-// NewTransport returns a new instrumented Transport for server-timing
-func NewTransport(ctx context.Context, opts ...Option) http.RoundTripper {
+// New returns a instrumented constructor for http client and transport.
+func New(opts ...Option) *Client {
 	// create default round tripper
-	t := &Transport{
+	t := &Client{
 		inner:  http.DefaultTransport,
 		metric: defaultMetric,
 		desc:   defaultDesc,
 		update: defaultUpdate,
-		timing: servertiming.FromContext(ctx),
 	}
 
 	// apply options
@@ -60,30 +65,54 @@ func NewTransport(ctx context.Context, opts ...Option) http.RoundTripper {
 	return t
 }
 
-// NewClient returns a new http client instrumented for server-timing
-func NewClient(ctx context.Context, opts ...Option) *http.Client {
-	return &http.Client{Transport: NewTransport(ctx, opts...)}
+// Transport returns a server-timing instrumented round tripper for the current context
+func (c *Client) Transport(ctx context.Context) http.RoundTripper {
+	return &transport{
+		Client: *c,
+		timing: servertiming.FromContext(ctx),
+	}
 }
 
-// Transport is instrumented http Transport
-type Transport struct {
-	// inner is the inner Transport used for sending the request and receiving the response
+// Client returns a server-timing instrumented http client for the current context
+func (c *Client) Client(ctx context.Context) *http.Client {
+	return &http.Client{Transport: c.Transport(ctx)}
+}
+
+// Client is instrumented http Client
+type Client struct {
+	// inner is the inner Client used for sending the request and receiving the response
 	inner http.RoundTripper
-	// timing is the timing header
-	timing *servertiming.Header
 	// metric is a function that sets the metric name from a given request
 	// desc is a function that sets the metric description from a given request
 	metric, desc func(*http.Request) string
 	// update updates the metric data from the response and error received after
-	// completing the roundtrip
+	// completing the round trip
 	update func(*servertiming.Metric, *http.Response, error)
+	// name is the name of the service holding the client
+	// it will be added to the timing extra data as "source"
+	name string
+}
+
+type transport struct {
+	Client
+	// timing is the timing header
+	timing *servertiming.Header
 }
 
 // RoundTrip implements the http.RoundTripper interface
-func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
+func (t *transport) RoundTrip(req *http.Request) (*http.Response, error) {
 
 	// Start the metrics for the get
-	metric := t.timing.NewMetric(t.metric(req)).WithDesc(t.desc(req)).Start()
+	metric := t.timing.NewMetric(t.metric(req)).WithDesc(t.desc(req))
+
+	if metric.Extra == nil {
+		metric.Extra = make(map[string]string)
+	}
+
+	if t.name != "" {
+		metric.Extra["source"] = t.name
+	}
+	metric.Start()
 
 	// Run the inner round trip
 	resp, err := t.inner.RoundTrip(req)
@@ -120,9 +149,6 @@ func defaultDesc(req *http.Request) string {
 
 // defaultUpdate sets status code in metric if there was no error, otherwise it sets the error text.
 func defaultUpdate(m *servertiming.Metric, resp *http.Response, err error) {
-	if m.Extra == nil {
-		m.Extra = make(map[string]string)
-	}
 	if err != nil {
 		m.Extra["error"] = err.Error()
 	} else {
