@@ -17,7 +17,7 @@ func TestClient(t *testing.T) {
 
 	s1 := httptest.NewServer(servertiming.Middleware(
 		&handler{
-			client: New(OptName("server1")),
+			client: New(WithName("server1")),
 			name:   "server1",
 		},
 		nil,
@@ -27,7 +27,7 @@ func TestClient(t *testing.T) {
 	s2 := httptest.NewServer(servertiming.Middleware(
 		&handler{
 			name:     "server2",
-			client:   New(OptName("server2")),
+			client:   New(WithName("server2")),
 			requests: []string{s1.URL + "/level2"},
 		},
 		nil,
@@ -37,7 +37,7 @@ func TestClient(t *testing.T) {
 	h := servertiming.Middleware(
 		&handler{
 			name:   "handler",
-			client: New(OptName("handler")),
+			client: New(WithName("handler")),
 			requests: []string{
 				s1.URL + "/level1",
 				s2.URL + "/level1",

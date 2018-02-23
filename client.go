@@ -10,39 +10,44 @@ import (
 	"github.com/mitchellh/go-server-timing"
 )
 
+// KeySource is the key in the metric in which the source name will be stored
+const KeySource = "source"
+
 // Option is client-timing transport option function
 type Option func(*Client)
 
-// OptTransport sets the inner Client for the request
-func OptTransport(inner http.RoundTripper) Option {
-	return func(t *Client) {
-		t.inner = inner
-	}
-}
-
-// OptMetric sets the metric function which defines the metric name from the request
-func OptMetric(metric func(*http.Request) string) Option {
-	return func(t *Client) {
-		t.metric = metric
-	}
-}
-
-func OptName(name string) Option {
+// WithName updates the source key in the metric to this name
+// It is used to give a name for the client
+func WithName(name string) Option {
 	return func(t *Client) {
 		t.name = name
 	}
 }
 
-// OptDesc sets the desc function which defines the metric description from the request
-func OptDesc(desc func(*http.Request) string) Option {
+// WithTransport sets the inner Client for the request
+func WithTransport(inner http.RoundTripper) Option {
+	return func(t *Client) {
+		t.inner = inner
+	}
+}
+
+// WithMetric sets the metric function which defines the metric name from the request
+func WithMetric(metric func(*http.Request) string) Option {
+	return func(t *Client) {
+		t.metric = metric
+	}
+}
+
+// WithDesc sets the desc function which defines the metric description from the request
+func WithDesc(desc func(*http.Request) string) Option {
 	return func(t *Client) {
 		t.desc = desc
 	}
 }
 
-// OptUpdate sets the update function which updates the metric according to response and error
+// WithUpdate sets the update function which updates the metric according to response and error
 // received from completing the round trip
-func OptUpdate(update func(*servertiming.Metric, *http.Response, error)) Option {
+func WithUpdate(update func(*servertiming.Metric, *http.Response, error)) Option {
 	return func(t *Client) {
 		t.update = update
 	}
@@ -109,8 +114,9 @@ func (t *transport) RoundTrip(req *http.Request) (*http.Response, error) {
 		metric.Extra = make(map[string]string)
 	}
 
+	// add the client name as a source to the metric
 	if t.name != "" {
-		metric.Extra["source"] = t.name
+		metric.Extra[KeySource] = t.name
 	}
 	metric.Start()
 
