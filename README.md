@@ -84,4 +84,6 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-See [`Timer` test](./timer_test.go).
+### Run the [example](./example/main.go)
+
+`go run ./example/main.go`

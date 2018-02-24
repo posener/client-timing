@@ -155,3 +155,15 @@ func (m *mockTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	}
 	return args.Get(0).(*http.Response), nil
 }
+
+func clearTimes(t *testing.T, metrics []*servertiming.Metric) {
+	t.Helper()
+	for i, m := range metrics {
+		// remove Duration and startTime from metric
+		metrics[i] = &servertiming.Metric{
+			Name:  m.Name,
+			Desc:  m.Desc,
+			Extra: m.Extra,
+		}
+	}
+}
