@@ -20,13 +20,13 @@ An HTTP client for [go-server-timing](https://github.com/mitchellh/go-server-tim
 
 ## Usage
 
-1. Add a `*clienttiming.Client` to your server handler, or create it in the handler function itself.
+1. Add a `*clienttiming.Timer` to your server handler, or create it in the handler function itself.
 2. Wrap the `http.Handler` with [`servertiming.Middleware`](https://godoc.org/github.com/mitchellh/go-server-timing#Middleware).
-2. In the handler function, having c of type `*clienttiming.Client` and `r` is the `*http.Request`:
+2. In the handler function, having `timer` of type `*clienttiming.Timer` and `req` is the `*http.Request`:
 
-    a. Create an [`*http.Client`](https://godoc.org/net/http#Client) using `c.Client(r.Context())`
+    a. Create an [`*http.Client`](https://godoc.org/net/http#Client) using `timer.Client(req.Context())`
     
-    b. Or create an [`http.RoundTripper`](https://godoc.org/net/http#RoundTripper) using `c.Transport(r.Context())`
+    b. Or create an [`http.RoundTripper`](https://godoc.org/net/http#RoundTripper) using `timer.Transport(req.Context())`
     
 3. Use option a or b directly or inject it to a library that accepts them, in your outgoing HTTP request
    from the handler.
@@ -34,15 +34,15 @@ An HTTP client for [go-server-timing](https://github.com/mitchellh/go-server-tim
 
 ```go
 type handler struct {
-	client *clienttiming.Client
+	timer *clienttiming.Timer
 }
 
 func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	c := h.client.Client(r.Context())
+	c := h.timer.Client(r.Context())
 	
 	resp, err := c.Get("https://golang.org/")
 	// handler resp, and error
 }
 ```
 
-See [client test](./client_test.go).
+See [`Timer` test](./timer_test.go).
