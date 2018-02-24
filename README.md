@@ -7,10 +7,12 @@
 
 An HTTP client for [go-server-timing](https://github.com/mitchellh/go-server-timing) middleware.
 
-The client automatically time HTTP requests sent from an HTTP handler, and adds them to the response headers.
-Additionally, it collects all timing headers from upstream server, and add them to the the response timing headers.
+## Features:
 
-The timing headers can be customized according to the request, response and error of the HTTP round trip.
+* An HTTP `Client` or `RoundTripper`, fully compatible with Go's standard library.
+* Automatically time HTTP requests sent from an HTTP handler.
+* Collects all timing headers from upstream servers.
+* Customize timing headers according to the request, response and error of the HTTP round trip.
 
 ## Install
 
@@ -32,7 +34,7 @@ The timing headers can be customized according to the request, response and erro
 
 ```go
 type handler struct {
-	client       *clienttiming.Client
+	client *clienttiming.Client
 }
 
 func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
