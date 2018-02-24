@@ -13,7 +13,7 @@ import (
 // KeySource is the key in the metric in which the source name will be stored
 const KeySource = "source"
 
-// Option is client-timing transport option function
+// Option is client-timing mockTransport option function
 type Option func(*Client)
 
 // WithName updates the source key in the metric to this name
@@ -53,14 +53,14 @@ func WithUpdate(update func(*servertiming.Metric, *http.Response, error)) Option
 	}
 }
 
-// New returns a instrumented constructor for http client and transport.
+// New returns a instrumented constructor for http client and mockTransport.
 func New(opts ...Option) *Client {
 	// create default round tripper
 	t := &Client{
 		inner:  http.DefaultTransport,
-		metric: defaultMetric,
-		desc:   defaultDesc,
-		update: defaultUpdate,
+		metric: DefaultMetric,
+		desc:   DefaultDesc,
+		update: DefaultUpdate,
 	}
 
 	// apply options
@@ -143,18 +143,18 @@ func (t *transport) RoundTrip(req *http.Request) (*http.Response, error) {
 	return resp, err
 }
 
-// defaultMetric set the metric name as the request host
-func defaultMetric(req *http.Request) string {
+// DefaultMetric set the metric name as the request host
+func DefaultMetric(req *http.Request) string {
 	return strings.Replace(req.Host, ":", ".", -1)
 }
 
-// defaultDesc set the metric description as the request method and path
-func defaultDesc(req *http.Request) string {
+// DefaultDesc set the metric description as the request method and path
+func DefaultDesc(req *http.Request) string {
 	return fmt.Sprintf("%s %s", req.Method, req.URL.Path)
 }
 
-// defaultUpdate sets status code in metric if there was no error, otherwise it sets the error text.
-func defaultUpdate(m *servertiming.Metric, resp *http.Response, err error) {
+// DefaultUpdate sets status code in metric if there was no error, otherwise it sets the error text.
+func DefaultUpdate(m *servertiming.Metric, resp *http.Response, err error) {
 	if err != nil {
 		m.Extra["error"] = err.Error()
 	} else {
