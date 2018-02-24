@@ -135,12 +135,19 @@ func (t *transport) RoundTrip(req *http.Request) (*http.Response, error) {
 	}
 
 	// Insert the timing headers from the response to the current headers
-	// They should be inserted in the beginning since they happened before the get itself
-	if responseHeaders, err := servertiming.ParseHeader(resp.Header.Get(servertiming.HeaderKey)); err == nil {
-		t.timing.Metrics = append(responseHeaders.Metrics, t.timing.Metrics...)
-	}
+	InsertMetrics(t.timing, resp.Header)
 
 	return resp, err
+}
+
+// InsertMetrics inserts to servertiming header metrics from an HTTP header of another request
+// They are prepended since they happened before the metrics of the header itself
+func InsertMetrics(h *servertiming.Header, headers http.Header) {
+	more, err := servertiming.ParseHeader(headers.Get(servertiming.HeaderKey))
+	if err != nil {
+		return
+	}
+	h.Metrics = append(more.Metrics, h.Metrics...)
 }
 
 // DefaultMetric set the metric name as the request host
