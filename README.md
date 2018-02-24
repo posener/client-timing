@@ -25,23 +25,62 @@ An HTTP client for [go-server-timing](https://github.com/mitchellh/go-server-tim
 2. In the handler function, having `timer` of type `*clienttiming.Timer` and `req` is the `*http.Request`:
 
     a. Create an [`*http.Client`](https://godoc.org/net/http#Client) using `timer.Client(req.Context())`
-    
+
     b. Or create an [`http.RoundTripper`](https://godoc.org/net/http#RoundTripper) using `timer.Transport(req.Context())`
-    
+
 3. Use option a or b directly or inject it to a library that accepts them, in your outgoing HTTP request
    from the handler.
 4. That is it! the timing header will appear in the response from the handler.
+
+## Example
+
+Suppose we have an HTTP handler:
 
 ```go
 type handler struct {
 	timer *clienttiming.Timer
 }
+```
 
+Our usage of that handler will be:
+
+```go
+func main() {
+	h := &handler{
+		timer: clienttiming.New(clienttiming.WithName("my server")),
+	}
+	log.Fatal(http.ListenAndServe(":8080", servertiming.Middleware(h)))
+}
+```
+
+
+### Example for `Client` function:
+
+```go
 func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// Create an http client using the request context
 	c := h.timer.Client(r.Context())
-	
+
+	// Perform HTTP requests, as many as you like
 	resp, err := c.Get("https://golang.org/")
-	// handler resp, and error
+
+	...
+}
+```
+
+### Example for `Transport` function:
+
+```go
+func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// Instrument an http client with a timing transport
+	c := &http.Client{
+		Transport: h.timer.Transport(r.Context()),
+	}
+
+	// Perform HTTP requests, as many as you like
+	resp, err := c.Get("https://golang.org/")
+
+	...
 }
 ```
 
