@@ -14,7 +14,7 @@ The timing headers can be customized according to the request, response and erro
 
 ## Install
 
-go get -u github.com/posener/client-timing
+`go get -u github.com/posener/client-timing`
 
 ## Usage
 
