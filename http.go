@@ -14,16 +14,23 @@ import (
 const KeySource = "source"
 
 // Transport returns a server-timing instrumented round tripper for the current context
-func (t *Timer) Transport(ctx context.Context) http.RoundTripper {
-	return &transport{
+func (t *Timer) Transport(ctx context.Context, opts ...Option) http.RoundTripper {
+	tr := &transport{
 		Timer:  *t,
 		timing: servertiming.FromContext(ctx),
 	}
+
+	// apply extra options on the timer copy
+	for _, opt := range opts {
+		opt(&tr.Timer)
+	}
+
+	return tr
 }
 
 // Client returns a server-timing instrumented http timer for the current context
-func (t *Timer) Client(ctx context.Context) *http.Client {
-	return &http.Client{Transport: t.Transport(ctx)}
+func (t *Timer) Client(ctx context.Context, opts ...Option) *http.Client {
+	return &http.Client{Transport: t.Transport(ctx, opts...)}
 }
 
 type transport struct {

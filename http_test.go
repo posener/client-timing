@@ -27,8 +27,11 @@ func TestHTTP(t *testing.T) {
 	tests := []struct {
 		name string
 
-		// options to test
+		// opts are options for the new timer
 		opts []Option
+
+		// clientOpts are options that are applied when client is created
+		clientOpts []Option
 
 		// inner transport behaviour
 		trResp *http.Response
@@ -96,6 +99,15 @@ func TestHTTP(t *testing.T) {
 				{Name: "golang.org", Desc: "GET ", Extra: map[string]string{"code": "200", "big": "surprise"}},
 			},
 		},
+		{
+			name:       "client options override timer options",
+			trResp:     &http.Response{StatusCode: http.StatusOK},
+			opts:       []Option{WithName("name")},
+			clientOpts: []Option{WithName("other-name")},
+			wantMetrics: []*servertiming.Metric{
+				{Name: "golang.org", Desc: "GET ", Extra: map[string]string{"code": "200", "source": "other-name"}},
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -109,7 +121,7 @@ func TestHTTP(t *testing.T) {
 				timing = New(opts...)
 				header servertiming.Header
 				req, _ = http.NewRequest(http.MethodGet, "https://golang.org", nil)
-				client = timing.Client(servertiming.NewContext(req.Context(), &header))
+				client = timing.Client(servertiming.NewContext(req.Context(), &header), tt.clientOpts...)
 			)
 
 			// prepare the mocked round tripper for the test
