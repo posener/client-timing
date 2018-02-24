@@ -19,10 +19,13 @@ The timing headers can be customized according to the request, response and erro
 ## Usage
 
 1. Add a `*clienttiming.Client` to your server handler, or create it in the handler function itself.
-2. Wrap the `http.Handler` with `servertiming.Middleware`.
+2. Wrap the `http.Handler` with [`servertiming.Middleware`](https://godoc.org/github.com/mitchellh/go-server-timing#Middleware).
 2. In the handler function, having c of type `*clienttiming.Client` and `r` is the `*http.Request`:
-    a. Create an `*http.Client` using `c.Client(r.Context())`
-    b. Or create an `http.RoundTripper` using `c.Transport(r.Context())`
+
+    a. Create an [`*http.Client`](https://godoc.org/net/http#Client) using `c.Client(r.Context())`
+    
+    b. Or create an [`http.RoundTripper`](https://godoc.org/net/http#RoundTripper) using `c.Transport(r.Context())`
+    
 3. Use option a or b directly or inject it to a library that accepts them, in your outgoing HTTP request
    from the handler.
 4. That is it! the timing header will appear in the response from the handler.
