@@ -47,7 +47,7 @@ Our usage of that handler will be:
 ```go
 func main() {
 	h := &handler{
-		timer: clienttiming.New(clienttiming.WithName("my server")),
+		timer: clienttiming.New(clienttiming.WithName("my-server")),
 	}
 	log.Fatal(http.ListenAndServe(":8080", servertiming.Middleware(h)))
 }

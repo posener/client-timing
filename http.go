@@ -2,7 +2,6 @@ package clienttiming
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -49,10 +48,12 @@ func (t *transport) RoundTrip(req *http.Request) (*http.Response, error) {
 		metric.Extra = make(map[string]string)
 	}
 
-	// add the timer name as a source to the metric
+	// Add the timer name as a source to the metric
 	if t.name != "" {
 		metric.Extra[KeySource] = t.name
 	}
+
+	// Start the metric before the round trip
 	metric.Start()
 
 	// Run the inner round trip
@@ -61,7 +62,7 @@ func (t *transport) RoundTrip(req *http.Request) (*http.Response, error) {
 	// Stop the metric after get
 	metric.Stop()
 
-	// update the metric with the response and error of the request
+	// Update the metric with the response and error of the request
 	t.update(metric, resp, err)
 
 	// In case of round trip error, return it
@@ -87,12 +88,13 @@ func InsertMetrics(h *servertiming.Header, headers http.Header) {
 
 // DefaultMetric set the metric name as the request host
 func DefaultMetric(req *http.Request) string {
-	return strings.Replace(req.Host, ":", ".", -1)
+	// remove colons since they are not a legal character for name
+	return strings.Replace(req.Host, ":", "/", -1)
 }
 
 // DefaultDesc set the metric description as the request method and path
 func DefaultDesc(req *http.Request) string {
-	return fmt.Sprintf("%s %s", req.Method, req.URL.Path)
+	return req.Method + " " + req.URL.Path
 }
 
 // DefaultUpdate sets status code in metric if there was no error, otherwise it sets the error text.
